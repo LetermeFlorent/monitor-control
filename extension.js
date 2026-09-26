@@ -44,11 +44,11 @@ export default class MonitorControlExtension extends Extension {
         this._indicator = null;
     }
 
-    // session-modes declares unlock-dialog: without it the shell disables the extension on
-    // lock and re-enables it on return, which destroys and recreates the dimming overlay,
-    // hence a flash of full brightness on every unlock. While locked, the panel menu is
-    // destroyed so no keyboard input reaches it; only the overlay actors stay in place.
     disable() {
+        // session-modes declares unlock-dialog: without it the shell disables the extension on
+        // lock and re-enables it on return, which destroys and recreates the dimming overlay,
+        // hence a flash of full brightness on every unlock. While locked, the panel menu is
+        // destroyed so no keyboard input reaches it; only the overlay actors stay in place.
         if (this._sessionId) {
             Main.sessionMode.disconnect(this._sessionId);
             this._sessionId = 0;

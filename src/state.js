@@ -23,23 +23,24 @@ export class StateStore {
     constructor(file) {
         this._file = file;
         this._saveId = 0;
-        this._data = this._load();
+        this._data = this._migrate({});
     }
 
-    _readJson(file) {
-        try {
-            const [ok, contents] = file.load_contents(null);
-            if (ok)
-                return JSON.parse(new TextDecoder().decode(contents));
-        } catch {
-            // File missing or unreadable: start from an empty state.
-        }
-        return null;
-    }
-
-    _load() {
-        const raw = this._readJson(this._file);
-        return this._migrate(raw ?? {});
+    // Read asynchronously: the shell's main loop must not block on disk.
+    load(cancellable) {
+        return new Promise(resolve => {
+            this._file.load_contents_async(cancellable, (file, res) => {
+                let raw = null;
+                try {
+                    const [, contents] = file.load_contents_finish(res);
+                    raw = JSON.parse(new TextDecoder().decode(contents));
+                } catch {
+                    // File missing or unreadable: start from an empty state.
+                }
+                this._data = this._migrate(raw ?? {});
+                resolve();
+            });
+        });
     }
 
     // Old v1 format = flat object { "<key>": { "10": n, "12": n, contrastPlus: x } }.

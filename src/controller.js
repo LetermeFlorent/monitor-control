@@ -1,4 +1,5 @@
 import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import * as Ddc from './ddcutil.js';
@@ -42,7 +43,11 @@ export class MonitorController {
     }
 
     start() {
-        this._detectAndApply(0);
+        this._loadCancellable = new Gio.Cancellable();
+        this._state.load(this._loadCancellable).then(() => {
+            if (!this._stopped)
+                this._detectAndApply(0);
+        });
     }
 
     _scheduleHotplug() {
@@ -243,6 +248,8 @@ export class MonitorController {
     // -- Lifecycle ---------------------------------------------------------------
     stop() {
         this._stopped = true;
+        this._loadCancellable?.cancel();
+        this._loadCancellable = null;
         if (this._monitorsChangedId) {
             Main.layoutManager.disconnect(this._monitorsChangedId);
             this._monitorsChangedId = 0;
