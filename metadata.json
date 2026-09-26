@@ -1,8 +1,16 @@
 {
-    "uuid": "monitor-control@dreykaoas",
+    "uuid": "monitor-control@letermeflorent.github.io",
     "name": "Monitor Control",
-    "description": "Control external displays from the systray: brightness and contrast via DDC/CI (ddcutil), plus a per-display software dimming overlay, restored at login.",
-    "shell-version": ["48", "49", "50"],
-    "session-modes": ["user", "unlock-dialog"],
-    "url": ""
+    "description": "Brightness and contrast of external monitors from the top bar, over DDC/CI with ddcutil, plus a per-monitor software dimming overlay that goes below the hardware minimum. Settings are restored at login.\n\nRequires ddcutil and read access to the i2c buses.\n\nThe extension stays enabled on the lock screen only to keep the dimming overlay in place: otherwise every unlock would flash the monitors at full brightness. It connects no keyboard input there.",
+    "shell-version": [
+        "48",
+        "49",
+        "50"
+    ],
+    "session-modes": [
+        "user",
+        "unlock-dialog"
+    ],
+    "url": "https://github.com/LetermeFlorent/monitor-control",
+    "version-name": "1.0"
 }
