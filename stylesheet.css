@@ -1,0 +1,9 @@
+.monitor-control-value-label {
+    min-width: 3.5em;
+    text-align: right;
+    font-feature-settings: "tnum";
+}
+
+.monitor-control-error {
+    font-size: 0.9em;
+}
