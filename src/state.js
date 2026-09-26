@@ -20,9 +20,8 @@ export function defaultStateFile() {
 }
 
 export class StateStore {
-    constructor(file, legacyFile = null) {
+    constructor(file) {
         this._file = file;
-        this._legacyFile = legacyFile;
         this._saveId = 0;
         this._data = this._load();
     }
@@ -39,23 +38,7 @@ export class StateStore {
     }
 
     _load() {
-        let raw = this._readJson(this._file);
-        if (raw === null && this._legacyFile) {
-            raw = this._readJson(this._legacyFile);
-            if (raw !== null) {
-                // Picking up from the old location: write it to the new one right away, then
-                // delete the old one. Leaving it in place would let it silently resurrect as
-                // soon as the new file is removed to start fresh.
-                this._data = this._migrate(raw);
-                this._writeNow();
-                try {
-                    this._legacyFile.delete(null);
-                } catch (e) {
-                    console.warn(`monitor-control: could not remove old state file: ${e}`);
-                }
-                return this._data;
-            }
-        }
+        const raw = this._readJson(this._file);
         return this._migrate(raw ?? {});
     }
 

@@ -16,11 +16,19 @@ let _queue = Promise.resolve();
 
 // Global cancellation: on the extension's disable(), we abandon every in-flight call so
 // no callback touches an already-destroyed UI.
-let _cancellable = new Gio.Cancellable();
+// Created on first use, not at import: nothing may be built before enable().
+let _cancellable = null;
+
+// Per-command timeouts, removed on disable() without waiting for the cancelled calls to
+// finish.
+const _timeouts = new Set();
 
 export function cancelAll() {
-    _cancellable.cancel();
-    _cancellable = new Gio.Cancellable();
+    _cancellable?.cancel();
+    _cancellable = null;
+    for (const id of _timeouts)
+        GLib.source_remove(id);
+    _timeouts.clear();
     // The queue is NOT reset: it still points at the end of the command still in flight.
     // Resetting it to Promise.resolve() would let the next command start in parallel with
     // this one, two ddcutil processes on the same i2c bus while flock is disabled. Commands
@@ -41,21 +49,29 @@ function spawn(args, cancellable) {
                 ['ddcutil', '--disable-flock', ...args],
                 Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_PIPE);
         } catch (e) {
-            reject(e);
+            if (e.matches?.(GLib.SpawnError, GLib.SpawnError.NOENT)) {
+                const error = new Error('ddcutil is not installed');
+                error.missing = true;
+                reject(error);
+            } else {
+                reject(e);
+            }
             return;
         }
 
         let done = false;
         let timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, COMMAND_TIMEOUT_MS, () => {
+            _timeouts.delete(timeoutId);
             timeoutId = 0;
             if (!done)
                 proc.force_exit();
             return GLib.SOURCE_REMOVE;
         });
+        _timeouts.add(timeoutId);
 
         proc.communicate_utf8_async(null, cancellable, (p, res) => {
             done = true;
-            if (timeoutId) {
+            if (timeoutId && _timeouts.delete(timeoutId)) {
                 GLib.source_remove(timeoutId);
                 timeoutId = 0;
             }
@@ -88,6 +104,7 @@ function spawn(args, cancellable) {
 export function runDdcutil(args) {
     // Cancellable captured at ENQUEUE time (not at execution time): otherwise a pending
     // command would read a fresh cancellable after a cancelAll() and run anyway.
+    _cancellable ??= new Gio.Cancellable();
     const cancellable = _cancellable;
     const result = _queue.then(() => spawn(args, cancellable), () => spawn(args, cancellable));
     // The queue keeps going even if this call fails.

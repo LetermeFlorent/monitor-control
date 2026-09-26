@@ -1,5 +1,4 @@
 import GLib from 'gi://GLib';
-import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import * as Ddc from './ddcutil.js';
@@ -20,7 +19,7 @@ const READ_CODES = [Ddc.VCP_BRIGHTNESS, Ddc.VCP_CONTRAST];
 // Non-graphical core: detects DDC/CI-capable displays, restores saved values, keeps a cache
 // of read values up to date, drives the software overlay, reacts to hotplug.
 export class MonitorController {
-    constructor(extensionPath) {
+    constructor() {
         this._stopped = false;
         this._monitors = [];           // controllable displays: { bus, key, connector, displayName }
         this._busByKey = new Map();    // key -> i2c bus number
@@ -34,9 +33,7 @@ export class MonitorController {
         this.onValues = null;          // (key) this display's cached values changed
         this.onError = null;           // (message) a ddcutil command failed
 
-        const legacy = Gio.File.new_for_path(
-            GLib.build_filenamev([extensionPath, 'state.json']));
-        this._state = new StateStore(defaultStateFile(), legacy);
+        this._state = new StateStore(defaultStateFile());
         this._dim = new DimManager();
 
         // Hotplug / wakeup: re-detect when the display layout changes.
@@ -108,6 +105,11 @@ export class MonitorController {
         }).catch(e => {
             if (this._stopped)
                 return;
+            // A missing binary will not appear by retrying: report it once and stop.
+            if (e.missing) {
+                this.onError?.(e.message);
+                return;
+            }
             console.warn(`monitor-control: ddcutil detection failed: ${e}`);
             if (attempt < DETECT_RETRY_DELAYS.length)
                 this._scheduleDetect(attempt);
